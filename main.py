@@ -63,13 +63,20 @@ def main():
     tf.summary.scalar("object_net/cost", object_net.cost)
     optimizer = tf.train.AdamOptimizer().minimize(object_net.cost)
 
+    run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+
     # Run training
     def train_step(session, step, training_input, _, summary_writer, all_summaries):
+        run_metadata = tf.RunMetadata()
+
         _, all_summaries = session.run(
             [optimizer, all_summaries],
-            truth_padded_data.get_feed_dict(training_input))
+            truth_padded_data.get_feed_dict(training_input),
+            run_metadata=run_metadata,
+            options=run_options)
 
         summary_writer.add_summary(all_summaries, step)
+        summary_writer.add_run_metadata(run_metadata, tag="run_metadata_%d" % step)
 
     def test_step(session, step, testing_input, _, summary_writer, all_summaries):
         cost_result, all_summaries = session.run(
