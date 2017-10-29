@@ -1,5 +1,5 @@
 [submodule "tf_utils"]
-	path = tf_utils
+	path = tf_utils.git
 	url = git@github.com:mishajw/tf_utils.git
 [submodule "object_net.git"]
 	path = object_net.git

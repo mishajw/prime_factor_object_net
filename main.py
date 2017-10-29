@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--hidden_vector_length", type=int, default=64)
     parser.add_argument("--fully_connected_sizes", type=str, default="256,256")
     parser.add_argument("--log_normalize", type=bool, default=False)
-    tf_utils.generic_runner.add_arguments(parser)
+    tf_utils.generic_runner.GenericRunner.add_arguments(parser)
     tf_utils.data_holder.add_arguments(parser)
     prime_factors.add_arguments(parser)
     args = parser.parse_args()
@@ -43,13 +43,12 @@ def main():
     with tf.variable_scope("truth_initial_hidden_vector_input"):
         truth_initial_hidden_vector_input = tf.reshape(
             tf.slice(truth_padded_data.outputs_padded, [0, 1, 0], [-1, 1, 1]),
-            [-1])
+            [-1, 1])
 
     def get_object_net_writer(training: bool) -> object_net_writer.ObjectNetWriter:
         return object_net_writer.ObjectNetWriter(
             truth_padded_data,
             truth_initial_hidden_vector_input,
-            hidden_vector_size=args.hidden_vector_length,
             object_type=tree_type,
             training=training,
             hidden_vector_network=object_net_components.LstmHiddenVectorNetwork(
@@ -64,14 +63,14 @@ def main():
     optimizer = tf.train.AdamOptimizer().minimize(object_net.cost)
 
     # Run training
-    def train_step(session, step, training_input, _, summary_writer, all_summaries):
+    def train_step(session, step, training_input, all_summaries, summary_writer):
         _, all_summaries = session.run(
             [optimizer, all_summaries],
             truth_padded_data.get_feed_dict(training_input))
 
         summary_writer.add_summary(all_summaries, step)
 
-    def test_step(session, step, testing_input, _, summary_writer, all_summaries):
+    def test_step(session, step, testing_input, all_summaries, summary_writer):
         cost_result, all_summaries = session.run(
             [object_net.cost, all_summaries],
             truth_padded_data.get_feed_dict(testing_input))
@@ -125,13 +124,11 @@ def main():
         print("Lengths:")
         print([len(list(unpadded)) for unpadded in padder.unpad(copied_testing_input)])
 
-    tf_utils.generic_runner.run_with_test_train_steps(
-        args,
-        "object_net",
-        get_batch_fn=lambda size: (data_holder.get_batch(size), None),
-        testing_data=(data_holder.get_test_data(), None),
-        test_step_fn=test_step,
-        train_step_fn=train_step)
+    runner = tf_utils.generic_runner.GenericRunner.from_args(args, "prime_factor_object_net")
+    runner.set_data_holder(data_holder)
+    runner.set_test_step(test_step)
+    runner.set_train_step(train_step)
+    runner.run()
 
 
 if __name__ == "__main__":
